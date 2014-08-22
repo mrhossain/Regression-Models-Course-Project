@@ -1,0 +1,86 @@
+---
+title: "Regression Models Course Project"
+output: pdf_document
+---
+# Executive Summary
+Here we used the `mtcars` dataset which contains the set of variables with related to miles per gallon (MPG).
+They are particularly interested in the following two questions:
+
+- "Is automatic or manual transmission better for MPG"
+- "Quantify this difference"
+
+# Data Analysis
+I analysis the dataset in dffrent statistical method.
+
+## Load and Test Data
+```{r cache=TRUE}
+library(datasets)
+data(mtcars)
+mpgData <- with(mtcars, data.frame(mpg, am))
+mpgData$am <- factor(mpgData$am, labels = c("Automatic", "Manual"))
+manual    <- as.list(subset(mtcars, am == 1, select = mpg))[[1]]
+automatic <- as.list(subset(mtcars, am == 0, select = mpg))[[1]] 
+```
+## Basic Analysis
+
+```{r cache=TRUE}
+summary(mpgData[mpgData$am == "Automatic",])
+summary(mpgData[mpgData$am == "Manual",])
+```
+The initial comparison is simply the summary statistics between automatic and manual.The "Manual" transmission cars on average get 7.3(24.4-17.1) MORE miles to the gallon than automatic cars do.
+
+##Basic Linear Model
+
+```{r cache=TRUE}
+fit <- lm(mtcars$mpg ~ as.integer(am), data=mpgData)
+summary(fit)
+```
+From summary `Automatic` transimission cars as the baseline, so the Intercept of 17.14.The coefficient for the `Manual` transmission is interepreted as `how many more miles per gallon on average do you get by switching from an Automatic to a Manual' which is 7.24.The R-Squared is 0.338, which is quite low. That means this model does not fit the data terribly well. 
+
+##Improved Linear Model
+
+Now i try to improve the linear model by using `ANOVA`
+The Analysis Of Variance, popularly known as the ANOVA, can be used in cases where there are more than two groups.
+```{r}
+fit2 <- update(fit, mtcars$mpg ~mtcars$am + mtcars$wt)
+fit3 <- update(fit, mtcars$mpg ~mtcars$am + mtcars$wt + mtcars$qsec)
+fit4 <- update(fit, mtcars$mpg ~ mtcars$am + mtcars$wt + mtcars$qsec + mtcars$cyl)
+anova(fit, fit2, fit3, fit4)
+```
+It is clear that the fit3 model, mpg being predicted by am, wt, and qsec gives us the strongest evidence to reject the null hypothesis.
+```{r}
+summary(fit3)
+```
+This is much better. Now we have an adjusted R squared of 0.834,meaning this model explains 88.36% of the variance making for a much better fit.
+```{r}
+bestfit <- update(fit, mtcars$mpg ~ mtcars$am + mtcars$wt + mtcars$qsec + mtcars$am*mtcars$wt)
+anova(fit3, bestfit)
+```
+After trial and error (not detailed here for sake of space) I have discovered that the interaction am*wt should be included to create my bestfit model.
+```{r}
+summary(bestfit)
+```
+Now we can see we have an adjusted R squared of 0.8804 and small p-values for the coefficients, so this model explains 88.04% of the variance in our data providing a good fit with statistically significant coefficients. 
+
+# Results
+
+So from the `Linear model` and `Basic analysis` gave us manual transmission is better than automatic for MPG, which increased by `r coef(fit)[2]`,and from `Improved Linear Model` difference between an automatic and manual car, a manual transmission car gets 14.079 more miles to the gallon than an Automatic - 4.141 * the weight. 
+- Now answer to Q1  can say manual transmission is better than automatic
+-  Now answer to Q2 manual transmission is better than automatic for MPG, which increased by `r coef(fit)[2]`.
+
+#APPENDIX
+
+Boxplot `am` vs `mpg`
+
+```{r fig.width=3, fig.height=3, tidy=TRUE, fig.cap="", echo=FALSE}
+boxplot(automatic, manual, cex = 1.0, col = c("thistle","wheat"),cex.lab=.5, cex.axis=.5, cex.main=.5, cex.sub=.5,names = c("0", "1"),xlab = "Transmission (0 = Automatic, 1 = Manual)",ylab = "Miles Per Gallon (MPG)")
+```
+
+
+
+Residuals
+
+```{r}
+par(mfrow = c(2,2))
+plot(bestfit)
+```
